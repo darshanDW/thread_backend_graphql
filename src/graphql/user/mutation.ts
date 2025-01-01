@@ -1,5 +1,5 @@
-export const mutation=
+export const mutation =
     `
-          createUser(firstName:String!,lastName:String! ,email:String!,password:String!):Boolean `  
+          createUser(firstName:String!,lastName:String! ,email:String!,password:String!):String `
 
-;
+    ;

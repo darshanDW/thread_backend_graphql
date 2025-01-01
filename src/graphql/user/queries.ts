@@ -1,4 +1,6 @@
+
+
 export const queries=
-`
-helloWorld:String`
-;
+
+    `getUserToken(email:String!,password:String!):String
+`;
