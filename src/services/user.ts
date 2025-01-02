@@ -1,82 +1,85 @@
-import { inflateRaw } from "node:zlib";
 import { prismaClient } from "../lib/db";
-import { createHmac, randomBytes } from "node:crypto"
+import { createHmac, randomBytes } from "node:crypto";
 import Jwt from "jsonwebtoken";
-import { emit } from "node:process";
-import { env } from "node:process";
-import dotenv from 'dotenv'
-export interface createUserpayload {
+import dotenv from "dotenv";
 
+dotenv.config();
 
-    firstName: string
-    lastName: string
-    email: string
-    password: string
-
-
-
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined in the environment variables");
 }
 
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
+export interface CreateUserPayload {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+}
 
-export interface getUserToken {
-    email: string
-    password: string
-
+export interface GetUserTokenPayload {
+    email: string;
+    password: string;
 }
 
 export class UserService {
-
     public static generateHash(salt: any, password: string) {
         const hashedPassword = createHmac("sha256", salt).update(password).digest("hex");
-        console.log(hashedPassword)
+        console.log(hashedPassword);
         return hashedPassword;
-
-
-
     }
 
-    public static async createUser(payload: createUserpayload) {
+    public static async createUser(payload: CreateUserPayload) {
         const { firstName, lastName, email, password } = payload;
-        const salt = randomBytes(32).toString('hex');
+        const salt = randomBytes(32).toString("hex");
         const hashedPassword = this.generateHash(salt, password);
         return prismaClient.user.create({
             data: {
-                firstName: firstName,
-                lastName: lastName,
-                email: email,
+                firstName,
+                lastName,
+                email,
                 password: hashedPassword,
-                salt: salt
-            }
-        })
+                salt,
+            },
+        });
     }
+
     private static async getUserByEmail(email: string) {
-
-        return prismaClient.user.findUnique({ where: { email } })
+        return prismaClient.user.findUnique({ where: { email } });
     }
+public static async getUserById(id:string){
+const user=await prismaClient.user.findUnique({where:{id}})
+return user;
 
 
-    public static async getUserToken(payload: getUserToken) {
+}
+    public static async getUserToken(payload: GetUserTokenPayload) {
         const { email, password } = payload;
         const user = await UserService.getUserByEmail(email);
+
         if (!user) {
-            throw new Error("User not found")
+            throw new Error("User not found");
         }
-        const usersalt = user.salt;
-        console.log(user.salt)
 
-        const userhashpassword = UserService.generateHash(usersalt, password);
-        // console.log(userhashpassword)
-        if (userhashpassword != user.password) {
-            throw new Error("Invalid password")
+        const userSalt = user.salt;
+        console.log(user.salt);
 
+        const userHashedPassword = UserService.generateHash(userSalt, password);
+        if (userHashedPassword !== user.password) {
+            throw new Error("Invalid password");
         }
-        //generate token
-        const JWTsecret = env.JWT_SECRET
-        console.log("secret", JWTsecret)
-        const token = Jwt.sign({ id: user.id, email: user.email }, "daf")
+
+        const token = Jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "1h" });
         return token;
+    }
 
+    public static async decodeToken(token: string) {
+        try {
+            const decoded: any = Jwt.verify(token, JWT_SECRET);
+            return decoded;
+        } catch (err: any) {
+            { }
+        }
     }
 }
-
